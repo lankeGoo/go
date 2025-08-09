@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<title>高光泽雪碧图围棋（在线版）</title>
+<style>
+  html,body{height:100%;margin:0;background:#111;color:#eee;font-family:sans-serif}
+  #wrap{display:flex;flex-direction:column;align-items:center;padding:10px}
+  #board{
+    position:relative;
+    width:min(90vmin,600px);
+    height:min(90vmin,600px);
+    background:url('https://i.imgur.com/8UODKnD.png') no-repeat center/contain;
+    cursor:pointer;
+    user-select:none;
+  }
+  .stone{
+    position:absolute;
+    width:4.8%;height:4.8%;
+    border-radius:50%;
+    pointer-events:none;
+    /* 雪碧图 + 光泽 */
+    --sprite:url('https://files.catbox.moe/fvpdjo.PNG');
+    -webkit-mask-image:var(--sprite);
+    -webkit-mask-size:900% 100%;
+    -webkit-mask-repeat:no-repeat;
+    mask-image:var(--sprite);
+    mask-size:900% 100%;
+    mask-repeat:no-repeat;
+    filter:url(#gloss);
+  }
+  .stone.black{background:#000}
+  .stone.white{background:#fff}
+  /* 镜面高光 */
+  .stone::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.45) 0%,transparent 65%);
+  }
+  #info{margin-top:8px;font-size:14px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="board"></div>
+  <div id="info">左键落子 | 右键切换黑白 | 滚轮缩放</div>
+</div>
+
+<!-- SVG 光泽滤镜 -->
+<svg width="0" height="0">
+  <defs>
+    <filter id="gloss" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="1 0 0 0 0.05
+                0 1 0 0 0.05
+                0 0 1 0 0.05
+                0 0 0 0.7 0"/>
+      <feBlend in="SourceGraphic" in2="blur" mode="overlay"/>
+    </filter>
+  </defs>
+</svg>
+
+<script>
+const SIZE = 19;              // 19路棋盘
+const stoneW = 4.8;           // 棋子占棋盘百分比
+let isBlack = true;           // 当前黑白
+let scale = 1;                // 棋盘缩放
+const board = document.getElementById('board');
+
+/* 坐标转换：点击位置 → 棋盘交叉点 */
+function xy2pt(ev){
+  const r = board.getBoundingClientRect();
+  const x = (ev.clientX - r.left) / r.width  * SIZE;
+  const y = (ev.clientY - r.top ) / r.height * SIZE;
+  return [Math.round(x), Math.round(y)];
+}
+
+/* 创建一颗棋子 */
+function createStone(x,y,color){
+  const s = document.createElement('div');
+  s.className = 'stone ' + color;
+  s.style.left = (x / SIZE * 100 - stoneW/2) + '%';
+  s.style.top  = (y / SIZE * 100 - stoneW/2) + '%';
+  /* 雪碧图帧索引：黑0-3 白4-8，随机挑一个纹理 */
+  const idx = color==='black' ? Math.floor(Math.random()*4)
+                              : 4 + Math.floor(Math.random()*5);
+  s.style.setProperty('-webkit-mask-position', `${idx * -100}% 0`);
+  s.style.setProperty('mask-position', `${idx * -100}% 0`);
+  board.appendChild(s);
+}
+
+/* 事件绑定 */
+board.addEventListener('click', ev=>{
+  const [x,y] = xy2pt(ev);
+  if(x<0||x>=SIZE||y<0||y>=SIZE) return;
+  createStone(x,y, isBlack?'black':'white');
+});
+
+board.addEventListener('contextmenu', ev=>{
+  ev.preventDefault();
+  isBlack = !isBlack;
+  document.getElementById('info').textContent =
+    `当前：${isBlack?'黑':'白'} | 左键落子 | 右键切换 | 滚轮缩放`;
+});
+
+board.addEventListener('wheel', ev=>{
+  ev.preventDefault();
+  scale = Math.max(0.5, Math.min(2, scale - ev.deltaY*0.001));
+  board.style.transform = `scale(${scale})`;
+});
+</script>
+</body>
+</html>
